@@ -15,12 +15,12 @@ const io = socketIo(server, {
 });
 
 // Create config directory if it doesn't exist
-const configDir = path.join(__dirname, 'config');
+const configDir = path.join(process.cwd(), "config");
 if (!fs.existsSync(configDir)) {
   fs.mkdirSync(configDir, { recursive: true });
 }
 
-// Create default config files
+// Default server configuration
 const defaultConfig = {
   port: PORT,
   maxname: 20,
@@ -29,12 +29,12 @@ const defaultConfig = {
   clientslowmode: 10000,
   spamlimit: 5,
   defname: "Bonzi",
-  godword: "",
+  godword: "racistword000",
   kingwords: [],
   lowkingwords: []
 };
 
-// Initialize config files
+// Initialize config files safely
 function initializeFile(filePath, content) {
   if (!fs.existsSync(filePath)) {
     console.log(`Creating ${filePath}`);
@@ -42,14 +42,13 @@ function initializeFile(filePath, content) {
   }
 }
 
-// Create necessary config files
-initializeFile(path.join(configDir, 'server-settings.json'), JSON.stringify(defaultConfig, null, 2));
-initializeFile(path.join(configDir, 'colors.txt'), "red\nblue\ngreen\nyellow\npurple\norange\npink");
-initializeFile(path.join(configDir, 'bans.txt'), "");
-initializeFile(path.join(configDir, 'vpncache.txt'), "");
+initializeFile(path.join(configDir, "server-settings.json"), JSON.stringify(defaultConfig, null, 2));
+initializeFile(path.join(configDir, "colors.txt"), "red\nblue\ngreen\nyellow\npurple\norange\npink");
+initializeFile(path.join(configDir, "bans.txt"), "");
+initializeFile(path.join(configDir, "vpncache.txt"), "");
 
 // Serve static files
-app.use(express.static(path.join(__dirname, 'client')));
+app.use(express.static(path.join(__dirname, "client")));
 
 // Basic route
 app.get("/", (req, res) => {
@@ -59,8 +58,9 @@ app.get("/", (req, res) => {
     <head>
         <title>BonziWORLD Recreation</title>
         <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #fafafa; }
             h1 { color: #4CAF50; }
+            p { color: #333; }
         </style>
     </head>
     <body>
@@ -74,17 +74,25 @@ app.get("/", (req, res) => {
 
 // Rooms storage
 const rooms = {
-  default: { users: {}, name: "default", ownerID: "0", private: false, reg: 0, loginCount: 0, msgsSent: 0, cmdsSent: 0 }
+  default: {
+    users: {},
+    name: "default",
+    ownerID: "0",
+    private: false,
+    reg: 0,
+    loginCount: 0,
+    msgsSent: 0,
+    cmdsSent: 0
+  }
 };
 
-// Socket.IO connection handling
+// Socket.IO handling
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   socket.on("login", (data) => {
     console.log("Login attempt:", data);
-    
-    // Simple login handling
+
     const user = {
       id: socket.id,
       name: data.name || "Bonzi",
@@ -92,27 +100,24 @@ io.on("connection", (socket) => {
       room: data.room || "default"
     };
 
-    // Join room
     if (!rooms[user.room]) {
-      rooms[user.room] = { 
-        users: {}, 
-        name: user.room, 
-        ownerID: socket.id, 
-        private: true, 
-        reg: 0, 
-        loginCount: 0, 
-        msgsSent: 0, 
-        cmdsSent: 0 
+      rooms[user.room] = {
+        users: {},
+        name: user.room,
+        ownerID: socket.id,
+        private: true,
+        reg: 0,
+        loginCount: 0,
+        msgsSent: 0,
+        cmdsSent: 0
       };
     }
 
     rooms[user.room].users[socket.id] = user;
     socket.join(user.room);
 
-    // Notify others
     socket.to(user.room).emit("user-joined", user);
-    
-    // Send success to client
+
     socket.emit("login-success", {
       user: user,
       roomUsers: Object.values(rooms[user.room].users)
@@ -122,10 +127,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("message", (data) => {
-    const room = Object.keys(rooms).find(roomName => 
-      rooms[roomName].users[socket.id]
-    );
-    
+    const room = Object.keys(rooms).find(roomName => rooms[roomName].users[socket.id]);
     if (room) {
       io.to(room).emit("new-message", {
         user: rooms[room].users[socket.id],
@@ -137,8 +139,6 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
-    
-    // Remove user from rooms
     Object.keys(rooms).forEach(roomName => {
       if (rooms[roomName].users[socket.id]) {
         const user = rooms[roomName].users[socket.id];
@@ -151,25 +151,25 @@ io.on("connection", (socket) => {
 
 // Health check endpoint
 app.get("/health", (req, res) => {
-  res.json({ 
-    status: "OK", 
-    uptime: process.uptime(), 
+  res.json({
+    status: "OK",
+    uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     rooms: Object.keys(rooms).length
   });
 });
 
 // Start server
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`BonziWORLD Server running on port ${PORT}`);
   console.log(`Config directory: ${configDir}`);
   console.log(`Web interface: http://localhost:${PORT}`);
 });
 
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down gracefully...");
   server.close(() => {
-    console.log('Process terminated');
+    console.log("Server closed.");
   });
 });
