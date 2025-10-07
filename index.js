@@ -29,7 +29,7 @@ const defaultConfig = {
   clientslowmode: 10000,
   spamlimit: 5,
   defname: "Bonzi",
-  godword: "ce9eb23b94ea9aa2724ddda2ce761479eeaa79f57016cceecd7582ff5aa8440a",
+  godword: "",
   kingwords: [],
   lowkingwords: []
 };
